@@ -3,6 +3,15 @@ LAUNCH GPS NAV: (USE SEPARATE TERMINALS)
 ros2 launch pavbot_gps gps.launch.py
 ros2 launch pavbot_gps_nav gps_waypoints.launch.py
 
+/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0
+
+
+
+BUILDING:
+source /opt/ros/humble/setup.bash
+colcon build
+source install/setup.bash
+
 TESTING FOR WAYPOINT NAVIGATION:
 1. Check current GPS lat and lon: ros2 topic echo /gps/fix --once
     - Should give: 

@@ -222,9 +222,11 @@ private:
       const double a = clamp(enu_ema_alpha_, 0.0, 0.99);
       enu_filt_e_ = a * enu_filt_e_ + (1.0 - a) * e;
       enu_filt_n_ = a * enu_filt_n_ + (1.0 - a) * n;
-      return std::make_pair(enu_filt_e_, enu_filt_n_);
+      return std::pair<double,double>{enu_filt_e_, enu_filt_n_};
+
     }
-    return std::make_pair(e, n);
+    return std::pair<double,double>{e, n};
+
   }
 
   // yaw_enu (rad): 0=north, +pi/2=east. This matches GPS COG degrees.
