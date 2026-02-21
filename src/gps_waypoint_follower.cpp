@@ -93,6 +93,7 @@ public:
     cog_topic_     = declare_parameter<std::string>("cog_topic", "/gps/cog_deg");
     sog_topic_     = declare_parameter<std::string>("sog_topic", "/gps/sog_mps");
     cmd_vel_topic_ = declare_parameter<std::string>("cmd_vel_topic", "/cmd_vel_nav");
+    imu_topic_ = declare_parameter<std::string>("imu_topic", "/sensors/imu/heading");
 
     // Control loop
     control_rate_hz_ = declare_parameter<double>("control_rate_hz", 20.0);
@@ -128,6 +129,12 @@ public:
     cog_timeout_sec_ = declare_parameter<double>("cog_timeout_sec", 1.0);
     cog_min_speed_mps_ = declare_parameter<double>("cog_min_speed_mps", 0.25);
 
+    //IMU freshness
+    imu_timeout_sec_ = declare_parameter<double>("imu_timeout_sec", 0.5);
+    use_imu_yaw_ = declare_parameter<bool>("use_imu_yaw", true);
+    imu_prefer_below_speed_mps_ = declare_parameter<double>("imu_prefer_below_speed_mps", 0.30);
+    imu_blend_weight_ = declare_parameter<double>("imu_blend_weight", 0.15);
+
     // Optional behavior: creep forward briefly to obtain COG if yaw unknown
     creep_for_cog_ = declare_parameter<bool>("creep_for_cog", false);
     creep_v_mps_   = declare_parameter<double>("creep_v_mps", 0.15);
@@ -136,6 +143,9 @@ public:
     // Position smoothing
     use_enu_ema_   = declare_parameter<bool>("use_enu_ema", true);
     enu_ema_alpha_ = declare_parameter<double>("enu_ema_alpha", 0.85);
+
+    // IMU params
+    imu_yaw_offset_deg_ = declare_parameter<double>("imu_yaw_offset_deg", 0.0);
 
     // ROS I/O
     fix_sub_ = create_subscription<sensor_msgs::msg::NavSatFix>(
@@ -149,6 +159,10 @@ public:
     sog_sub_ = create_subscription<std_msgs::msg::Float32>(
       sog_topic_, rclcpp::QoS(10),
       std::bind(&GPSWaypointFollower::on_sog, this, std::placeholders::_1));
+
+    imu_sub_ = create_subscription<std_msgs::msg::Float32>(
+    imu_topic_, rclcpp::QoS(10),
+    std::bind(&GPSWaypointFollower::on_imu_heading, this, std::placeholders::_1));
 
     cmd_pub_ = create_publisher<geometry_msgs::msg::Twist>(cmd_vel_topic_, rclcpp::QoS(10));
 
@@ -198,6 +212,12 @@ private:
     has_sog_ = true;
   }
 
+  void on_imu_heading(const std_msgs::msg::Float32::SharedPtr msg) {
+    last_imu_time_ = now();
+    last_imu_heading_deg_ = msg->data;
+    has_imu_ = true;
+  }
+
   // -------- Helpers --------
   bool fix_usable(const sensor_msgs::msg::NavSatFix& fix) const {
     if (fix.status.status < sensor_msgs::msg::NavSatStatus::STATUS_FIX) return false;
@@ -227,22 +247,52 @@ private:
     return std::make_pair(e, n);
   }
 
-  // yaw_enu (rad): 0=north, +pi/2=east. This matches GPS COG degrees.
-  std::optional<double> current_yaw_enu() {
-    if (!has_cog_ || !fresh(last_cog_time_, cog_timeout_sec_)) return std::nullopt;
+  static inline double blend_angles(double a, double b, double w) {
+    // wrap-aware blend from a toward b by weight w in [0,1]
+    const double d = wrap_pi(b - a);
+    return wrap_pi(a + clamp(w, 0.0, 1.0) * d);
+  }
 
-    // If we have speed and it's too low, hold last_good_yaw_ (COG is noisy at low speed)
-    if (has_sog_ && fresh(last_sog_time_, cog_timeout_sec_)) {
-      if (last_sog_mps_ < cog_min_speed_mps_) {
-        if (has_last_good_yaw_) return last_good_yaw_;
-      }
+  // yaw_enu (rad): 0=north, +pi/2=east. Matches GPS COG degrees and your bearing atan2(E,N).
+  std::optional<double> current_yaw_enu() {
+    const auto imu_yaw_opt = current_imu_yaw_enu();
+
+    const bool cog_ok = (has_cog_ && fresh(last_cog_time_, cog_timeout_sec_));
+    const bool sog_ok = (has_sog_ && fresh(last_sog_time_, cog_timeout_sec_));
+
+    // If no COG at all, fall back to IMU if available
+    if (!cog_ok) {
+      if (imu_yaw_opt) return *imu_yaw_opt;
+      return std::nullopt;
     }
 
-    // Use current COG as yaw
-    const double yaw = wrap_pi(deg2rad(last_cog_deg_));
-    last_good_yaw_ = yaw;
+    // Compute COG yaw
+    const double cog_yaw = wrap_pi(deg2rad(last_cog_deg_));
+
+    // If speed is known and very low, prefer IMU (COG is noisy when stopped)
+    if (sog_ok && last_sog_mps_ < imu_prefer_below_speed_mps_) {
+      if (imu_yaw_opt) {
+        last_good_yaw_ = *imu_yaw_opt;
+        has_last_good_yaw_ = true;
+        return *imu_yaw_opt;
+      }
+      // If no IMU, use last good yaw (your existing behavior)
+      if (has_last_good_yaw_) return last_good_yaw_;
+      return cog_yaw; // last resort
+    }
+
+    // Moving: optionally blend IMU with COG (keeps COG absolute, smooths with IMU)
+    if (imu_yaw_opt) {
+      const double fused = blend_angles(cog_yaw, *imu_yaw_opt, imu_blend_weight_);
+      last_good_yaw_ = fused;
+      has_last_good_yaw_ = true;
+      return fused;
+    }
+
+    // No IMU: use COG
+    last_good_yaw_ = cog_yaw;
     has_last_good_yaw_ = true;
-    return yaw;
+    return cog_yaw;
   }
 
   void publish_stop() {
@@ -250,6 +300,21 @@ private:
     cmd.linear.x = 0.0;
     cmd.angular.z = 0.0;
     cmd_pub_->publish(cmd);
+  }
+
+  std::optional<double> current_imu_yaw_enu() {
+    if (!use_imu_yaw_) return std::nullopt;
+    if (!has_imu_ || !fresh(last_imu_time_, imu_timeout_sec_)) return std::nullopt;
+
+    // Apply mount/calibration offset (degrees)
+    double h = static_cast<double>(last_imu_heading_deg_) + imu_yaw_offset_deg_;
+
+    // Wrap to [0, 360)
+    while (h >= 360.0) h -= 360.0;
+    while (h < 0.0) h += 360.0;
+
+    // Convert to radians in your yaw_enu convention (0=N, +pi/2=E)
+    return wrap_pi(deg2rad(h));
   }
 
   // -------- Control Loop --------
@@ -432,11 +497,28 @@ private:
   bool creep_active_{false};
   rclcpp::Time creep_start_time_{};
 
+  // ---- IMU params/state ----
+  std::string imu_topic_;
+  double imu_timeout_sec_{0.5};
+  bool use_imu_yaw_{true};
+  double imu_prefer_below_speed_mps_{0.30};  // when slow/stopped, use IMU
+  double imu_blend_weight_{0.15};            // 0=COG only, 1=IMU only (when blending)
+
+  // IMU state
+  bool has_imu_{false};
+  float last_imu_heading_deg_{0.0f};
+  rclcpp::Time last_imu_time_{};
+
+  double imu_yaw_offset_deg_{0.0}; // param for offset (point true north)
+
+
+
   // ROS
   rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr fix_sub_;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr cog_sub_;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sog_sub_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
+  rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr imu_sub_; //IMU sub
   rclcpp::TimerBase::SharedPtr timer_;
 };
 

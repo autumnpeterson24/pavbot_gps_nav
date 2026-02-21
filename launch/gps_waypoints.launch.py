@@ -57,11 +57,11 @@ def generate_launch_description():
 
                 # Waypoints (lat,lon strings)
                 "waypoints": [
-                    "33.4212345,-111.9332100",
-                    "33.4212800,-111.9330500",
+                    "34.62418333,-112.35280667",
+                    "34.62428333,-112.35280667",
                 ],
 
-                "goal_radius_m": 2.5,
+                "goal_radius_m": 3.0, # make it a little lenient for testing
                 "slow_radius_m": 6.0,
                 "advance_hold_time_sec": 0.5,
                 "stop_at_final_waypoint": True,
@@ -77,13 +77,19 @@ def generate_launch_description():
                 "cog_timeout_sec": 1.0,
                 "cog_min_speed_mps": 0.25,
 
-                # GPS-only startup helper (optional) have to have a little speed to get it up and going with no IMU
+                # GPS-only startup helper have to have a little speed to get it up and going with no IMU
                 "creep_for_cog": False,
                 "creep_v_mps": 0.15,
                 "creep_time_sec": 0.6,
 
                 "use_enu_ema": True,
                 "enu_ema_alpha": 0.85,
+
+                "imu_topic": "/sensors/imu/heading",
+                "imu_timeout_sec": 0.5,
+                "use_imu_yaw": True,
+                "imu_prefer_below_speed_mps": 0.30,
+                "imu_blend_weight": 0.15,
             }],
         )
     ])
