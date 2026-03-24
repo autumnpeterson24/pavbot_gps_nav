@@ -49,6 +49,7 @@ TESTING FOR WAYPOINT NAVIGATION:
             ---
 2. Send waypoints 10 m apart for testing in gps_waypoints.launch.py: 
     - waypoints:="['34.62420833333333,-112.35278333333332','34.62430833333333,-112.35278333333332']" ***(4th decimal point change)
+    *** USE PYTHON SCRIPT TO GET SQUARE WAYPOINTS
 
 
 
