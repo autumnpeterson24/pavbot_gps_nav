@@ -1,7 +1,16 @@
 """
-LAUNCH GPS NAV: (USE SEPARATE TERMINALS)
+1) LAUNCH GPS NAV: (USE SEPARATE TERMINALS)
 ros2 launch pavbot_gps gps.launch.py
 ros2 launch pavbot_gps_nav gps_waypoints.launch.py
+
+2) LAUNCH IMU:
+ros2 launch pavbot_imu imu.launch.py
+
+3) LAUNCH TEENSY CONTROL:
+ros2 launch pavbot_teensy_control teensy_transport_serial
+
+4) LAUNCH ESTOP
+ros2 launch pavbot_estop estop.launch.py
 
 /dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0
 
@@ -60,15 +69,16 @@ def generate_launch_description():
                 "fix_topic": "/gps/fix",
                 "cog_topic": "/gps/cog_deg",
                 "sog_topic": "/gps/sog_mps",
-                "cmd_vel_topic": "/cmd_vel_nav",
+                "cmd_vel_topic": "/cmd_vel",
 
                 "control_rate_hz": 20.0,
 
-                # Waypoints (lat,lon strings)
+                # Waypoints (lat,lon strings) *********************************************
                 "waypoints": [
                     "34.62418333,-112.35280667",
                     "34.62428333,-112.35280667",
                 ],
+                # *************************************************************************
 
                 "goal_radius_m": 3.0, # make it a little lenient for testing
                 "slow_radius_m": 6.0,
