@@ -76,13 +76,16 @@ def generate_launch_description():
 
                 # Waypoints (lat,lon strings) *********************************************
                 "waypoints": [
-                    "34.62418333,-112.35280667",
-                    "34.62428333,-112.35280667",
+                    "34.61459500,-112.45072167",
+                    "34.61462200,-112.45072167",
+                    "34.61462200,-112.45068886",
+                    "34.61459500,-112.45068886",
+                    "34.61459500,-112.45072167"
                 ],
                 # *************************************************************************
 
-                "goal_radius_m": 3.0, # make it a little lenient for testing
-                "slow_radius_m": 6.0,
+                "goal_radius_m": 1.0, # make it a little lenient for testing
+                "slow_radius_m": 2.0,
                 "advance_hold_time_sec": 0.5,
                 "stop_at_final_waypoint": True,
 

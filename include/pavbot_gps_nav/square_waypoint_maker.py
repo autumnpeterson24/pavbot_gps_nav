@@ -18,8 +18,10 @@ def square_waypoints(lat0, lon0, side_m):
     P4 = offset_latlon(*P3, 0, -side_m)  # back to start
     return [P0, P1, P2, P3, P4]
 
-lat0, lon0 = 34.62408333, -112.35280333 # plug in coordinates
-wps = square_waypoints(lat0, lon0, 10) # change to how many meters want side of square to be for path
+lat0, lon0 = 34.61459500, -112.45072167
+
+ # plug in coordinates
+wps = square_waypoints(lat0, lon0, 3) # change to how many meters want side of square to be for path
 
 for lat, lon in wps:
     print(f"\"{lat:.8f},{lon:.8f}\",") # put waypoints into gps_waypoints.launch.py
