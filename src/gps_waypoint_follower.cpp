@@ -1,22 +1,25 @@
-// gps_waypoint_follower.cpp
-//
-// GPS-only waypoint navigation (no encoders).
-// Uses NavSatFix + COG/SOG to publish cmd_vel for your cmd_vel_to_wheels node.
-//
-// Topics:
-//   Sub: /gps/fix     (sensor_msgs/NavSatFix)
-//   Sub: /gps/cog_deg (std_msgs/Float32) course-over-ground deg (0=N, 90=E)
-//   Sub: /gps/sog_mps (std_msgs/Float32) speed-over-ground m/s
-//   Pub: /cmd_vel_nav (geometry_msgs/Twist)
-//
-// Waypoints param: ["lat,lon", "lat,lon", ...]
-//
-// Coordinate convention used internally:
-//   ENU meters: +E (east), +N (north)
-//   yaw_enu: 0 rad = north, +pi/2 = east  (matches GPS COG convention)
-//   bearing: atan2(E, N) (also matches yaw_enu)
-//
-// This is intentional so COG_deg can be used directly as yaw_enu.
+
+/*
+gps_waypoint_follower.cpp
+
+GPS-only waypoint navigation (no encoders).
+Uses NavSatFix + COG/SOG to publish cmd_vel for cmd_vel_to_wheels node.
+
+Topics:
+  Sub: /gps/fix     (sensor_msgs/NavSatFix)
+  Sub: /gps/cog_deg (std_msgs/Float32) course-over-ground deg (0=N, 90=E)
+  Sub: /gps/sog_mps (std_msgs/Float32) speed-over-ground m/s
+  Pub: /cmd_vel_nav (geometry_msgs/Twist) ***remapped in launch to cmd_vel
+
+Waypoints param: ["lat,lon", "lat,lon", ...]
+
+Coordinate convention used internally:
+  ENU meters: +E (east), +N (north)
+  yaw_enu: 0 rad = north, +pi/2 = east  (matches GPS COG format)
+  bearing: atan2(E, N) (also matches yaw_enu)
+
+***intentional so COG_deg can be used directly as yaw_enu.
+*/
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
@@ -177,7 +180,7 @@ public:
   }
 
 private:
-  // -------- Callbacks --------
+  // Callbacks
   void on_fix(const sensor_msgs::msg::NavSatFix::SharedPtr msg) {
     last_fix_time_ = now();
     last_fix_ = *msg;
@@ -218,7 +221,7 @@ private:
     has_imu_ = true;
   }
 
-  // -------- Helpers --------
+  // Helpers
   bool fix_usable(const sensor_msgs::msg::NavSatFix& fix) const {
     if (fix.status.status < sensor_msgs::msg::NavSatStatus::STATUS_FIX) return false;
     if (!std::isfinite(fix.latitude) || !std::isfinite(fix.longitude)) return false;
@@ -255,7 +258,7 @@ private:
     return wrap_pi(a + clamp(w, 0.0, 1.0) * d);
   }
 
-  // yaw_enu (rad): 0=north, +pi/2=east. Matches GPS COG degrees and your bearing atan2(E,N).
+  // yaw_enu (rad): 0=north, +pi/2=east matches GPS COG degrees and bearing atan2(E,N)
   std::optional<double> current_yaw_enu() {
     const auto imu_yaw_opt = current_imu_yaw_enu();
 
@@ -268,8 +271,7 @@ private:
       return std::nullopt;
     }
 
-    // Compute COG yaw
-    const double cog_yaw = wrap_pi(deg2rad(last_cog_deg_));
+    const double cog_yaw = wrap_pi(deg2rad(last_cog_deg_)); // Compute COG yaw
 
     // If speed is known and very low, prefer IMU (COG is noisy when stopped)
     if (sog_ok && last_sog_mps_ < imu_prefer_below_speed_mps_) {
@@ -278,12 +280,12 @@ private:
         has_last_good_yaw_ = true;
         return *imu_yaw_opt;
       }
-      // If no IMU, use last good yaw (your existing behavior)
+      // If no IMU use last good yaw (your existing behavior)
       if (has_last_good_yaw_) return last_good_yaw_;
       return cog_yaw; // last resort
     }
 
-    // Moving: optionally blend IMU with COG (keeps COG absolute, smooths with IMU)
+    // If moving optionally blend IMU with COG (keeps COG absolute, smooths with IMU)
     if (imu_yaw_opt) {
       const double fused = blend_angles(cog_yaw, *imu_yaw_opt, imu_blend_weight_);
       last_good_yaw_ = fused;
@@ -291,7 +293,7 @@ private:
       return fused;
     }
 
-    // No IMU: use COG
+    // No IMU??? use COG
     last_good_yaw_ = cog_yaw;
     has_last_good_yaw_ = true;
     return cog_yaw;
@@ -319,7 +321,7 @@ private:
     return wrap_pi(deg2rad(h));
   }
 
-  // -------- Control Loop --------
+  // Control Loop
   void tick() {
     if (waypoints_.empty()) {
       publish_stop();
@@ -387,8 +389,7 @@ private:
           cmd.linear.x = creep_v_mps_;
           cmd.angular.z = 0.0;
           cmd_pub_->publish(cmd);
-          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                               "No COG yet; creeping forward to establish heading...");
+          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "No COG yet; creeping forward to establish heading...");
           return;
         } else {
           creep_active_ = false;
@@ -414,7 +415,8 @@ private:
     double v = 0.0;
     if (std::abs(heading_err) > heading_turn_only_rad_) {
       v = 0.0; // turn-in-place until pointed
-    } else {
+    } 
+    else {
       // base speed from distance
       double v_cmd = clamp(kv_ * dist, v_min_, v_max_);
 
@@ -499,12 +501,12 @@ private:
   bool creep_active_{false};
   rclcpp::Time creep_start_time_{};
 
-  // ---- IMU params/state ----
+  //IMU params/state 
   std::string imu_topic_;
   double imu_timeout_sec_{0.5};
   bool use_imu_yaw_{true};
-  double imu_prefer_below_speed_mps_{0.30};  // when slow/stopped, use IMU
-  double imu_blend_weight_{0.15};            // 0=COG only, 1=IMU only (when blending)
+  double imu_prefer_below_speed_mps_{0.30}; // when slow/stopped, use IMU
+  double imu_blend_weight_{0.15}; // 0=COG only, 1=IMU only (when blending)
 
   // IMU state
   bool has_imu_{false};
