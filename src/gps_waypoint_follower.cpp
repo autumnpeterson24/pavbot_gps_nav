@@ -164,7 +164,7 @@ public:
       std::bind(&GPSWaypointFollower::on_sog, this, std::placeholders::_1));
 
     imu_sub_ = create_subscription<std_msgs::msg::Float32>(
-    imu_topic_, rclcpp::QoS(10),
+    imu_topic_, rclcpp::SensorDataQoS(),
     std::bind(&GPSWaypointFollower::on_imu_heading, this, std::placeholders::_1));
 
     cmd_pub_ = create_publisher<geometry_msgs::msg::Twist>(cmd_vel_topic_, rclcpp::QoS(10));
