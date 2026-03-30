@@ -118,11 +118,11 @@ public:
     stop_at_final_waypoint_ = declare_parameter<bool>("stop_at_final_waypoint", true);
 
     // Gains/limits
-    kv_    = declare_parameter<double>("k_v", 0.35);
-    kw_    = declare_parameter<double>("k_w", 1.8);
-    v_max_ = declare_parameter<double>("v_max", 0.6);
-    v_min_ = declare_parameter<double>("v_min", 0.0);
-    w_max_ = declare_parameter<double>("w_max", 1.4);
+    kv_    = declare_parameter<double>("k_v", 0.20);
+    kw_    = declare_parameter<double>("k_w", 0.8);
+    v_max_ = declare_parameter<double>("v_max", 0.2);
+    v_min_ = declare_parameter<double>("v_min", 0.05);
+    w_max_ = declare_parameter<double>("w_max", 0.45);
 
     // Turn-in-place threshold
     heading_turn_only_rad_ = declare_parameter<double>("heading_turn_only_rad", 35.0 * M_PI / 180.0);
@@ -414,7 +414,7 @@ private:
 
     double v = 0.0;
     if (std::abs(heading_err) > heading_turn_only_rad_) {
-      v = 0.0; // turn-in-place until pointed
+      v = 0.03; // be able to go forward a little more
     } 
     else {
       // base speed from distance

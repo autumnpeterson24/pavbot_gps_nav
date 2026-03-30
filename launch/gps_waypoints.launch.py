@@ -1,54 +1,51 @@
 """
-1) LAUNCH GPS NAV: (USE SEPARATE TERMINALS)
-ros2 launch pavbot_gps gps.launch.py
-ros2 launch pavbot_gps_nav gps_waypoints.launch.py
+GPS WAYPOINT NAV +++++++++++++++++++++++++++++++++++++
+1) LAUNCH TEENSY
+ros2 launch pavbot_teensy_control teensy_control.launch.py
 
-2) LAUNCH IMU:
+2) LAUNCH IMU
 ros2 launch pavbot_imu imu.launch.py
 
-3) LAUNCH TEENSY CONTROL:
-ros2 launch pavbot_teensy_control teensy_transport_serial
+3) LAUNCH GPS
+ros2 launch pavbot_gps gps.launch.py
 
-4) LAUNCH ESTOP
-ros2 launch pavbot_estop estop.launch.py
+4) LAUNCH GPS WAYPOINT NAV
+ros2 launch pavbot_gps_nav gps_waypoints.launch.py
 
-/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+IMU MOUNTING on PAVBot: ============================
+*** MOUNT IMU WITH X = forward, Y = left, Z = up
 
+IMU ORIENTATION:
+          (USB side)
+             ^
+             |
+             Y+
+
+   X- <-  [ IMU ]   -> X+
+
+             |
+             v
+             Y-
+
+0 deg = North
+90 deg = East
+180 deg = South
+270 deg = West
+===================================================
+
+Serial ID of GPS and Teensy:
+- GPS: /dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0
+- Teensy: /dev/serial/by-id/usb-Teensyduino_USB_Serial_9147040-if00
 
 BUILDING:
 source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
 
-TESTING FOR WAYPOINT NAVIGATION:
-1. Check current GPS lat and lon: ros2 topic echo /gps/fix --once
-    - Should give: 
-        header:
-            stamp:
-                sec: 1771171287
-                nanosec: 393463786
-            frame_id: gps_link
-            status:
-            status: 0
-            service: 1
-            latitude: 34.62410833333333
-            longitude: -112.35278333333332
-            altitude: 0.0
-            position_covariance:
-            - 0.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - 0.0
-            - 0.0
-            position_covariance_type: 0
-            ---
-2. Send waypoints 10 m apart for testing in gps_waypoints.launch.py: 
-    - waypoints:="['34.62420833333333,-112.35278333333332','34.62430833333333,-112.35278333333332']" ***(4th decimal point change)
+- Send waypoints 10 m apart for testing in gps_waypoints.launch.py: 
+    - waypoints:="['34.62420833333333,-112.35278333333332','34.62430833333333,-112.35278333333332']" 
     *** USE PYTHON SCRIPT TO GET SQUARE WAYPOINTS
 
 
@@ -76,11 +73,8 @@ def generate_launch_description():
 
                 # Waypoints (lat,lon strings) *********************************************
                 "waypoints": [
-                    "34.61459500,-112.45072167",
-                    "34.61462200,-112.45072167",
-                    "34.61462200,-112.45068886",
-                    "34.61459500,-112.45068886",
-                    "34.61459500,-112.45072167"
+                    "34.61444667, -112.45063333"
+
                 ],
                 # *************************************************************************
 
@@ -89,12 +83,12 @@ def generate_launch_description():
                 "advance_hold_time_sec": 0.5,
                 "stop_at_final_waypoint": True,
 
-                "k_v": 0.35,
-                "k_w": 1.8,
-                "v_max": 0.3, # very small for testing
-                "v_min": 0.0,
-                "w_max": 0.6, # very small for testing
-                "heading_turn_only_rad": 0.61,   # ~35 deg
+                "k_v": 0.18,
+                "k_w": 0.70,
+                "v_max": 0.18, # very small for testing
+                "v_min": 0.04,
+                "w_max": 0.35, # very small for testing
+                "heading_turn_only_rad": 1.05,   # 60 deg
 
                 "fix_timeout_sec": 1.0,
                 "cog_timeout_sec": 1.0,
@@ -111,8 +105,8 @@ def generate_launch_description():
                 "imu_topic": "/sensors/imu/heading",
                 "imu_timeout_sec": 0.5,
                 "use_imu_yaw": True,
-                "imu_prefer_below_speed_mps": 0.30,
-                "imu_blend_weight": 0.15,
+                "imu_prefer_below_speed_mps": 0.60,
+                "imu_blend_weight": 0.0,
             }],
         )
     ])

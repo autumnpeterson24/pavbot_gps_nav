@@ -21,7 +21,7 @@ def square_waypoints(lat0, lon0, side_m):
 lat0, lon0 = 34.61459500, -112.45072167
 
  # plug in coordinates
-wps = square_waypoints(lat0, lon0, 3) # change to how many meters want side of square to be for path
+wps = square_waypoints(lat0, lon0, 8) # change to how many meters want side of square to be for path
 
 for lat, lon in wps:
     print(f"\"{lat:.8f},{lon:.8f}\",") # put waypoints into gps_waypoints.launch.py
