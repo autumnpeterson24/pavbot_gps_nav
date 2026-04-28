@@ -17,18 +17,6 @@ ros2 launch pavbot_gps_nav gps_waypoints.launch.py
 IMU MOUNTING on PAVBot: ============================
 *** MOUNT IMU WITH X = forward, Y = left, Z = up
 
-IMU ORIENTATION:
-          (USB side)
-             ^
-             |
-             Y+
-
-   X- <-  [ IMU ]   -> X+
-
-             |
-             v
-             Y-
-
 0 deg = North
 90 deg = East
 180 deg = South
@@ -73,7 +61,9 @@ def generate_launch_description():
 
                 # Waypoints (lat,lon strings) *********************************************
                 "waypoints": [
-                    "34.61444667, -112.45063333"
+                    "34.61503,-112.45106",
+     
+
 
                 ],
                 # *************************************************************************
@@ -95,7 +85,7 @@ def generate_launch_description():
                 "cog_min_speed_mps": 0.25,
 
                 # GPS-only startup helper have to have a little speed to get it up and going with no IMU
-                "creep_for_cog": False,
+                "creep_for_cog": True,
                 "creep_v_mps": 0.15,
                 "creep_time_sec": 0.6,
 
@@ -106,7 +96,7 @@ def generate_launch_description():
                 "imu_timeout_sec": 0.5,
                 "use_imu_yaw": True,
                 "imu_prefer_below_speed_mps": 0.60,
-                "imu_blend_weight": 0.0,
+                "imu_blend_weight": 0.90,
             }],
         )
     ])
